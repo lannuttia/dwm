@@ -14,7 +14,6 @@ jobs:
       fail-fast: false
       matrix:
         container:
-          - image: artixlinux/base
           - image: archlinux
           - image: debian:10
             env:
