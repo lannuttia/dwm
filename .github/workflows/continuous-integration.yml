@@ -19,13 +19,7 @@ jobs:
           - image: debian:10
             env:
               DEBIAN_FRONTEND: noninteractive
-          - image: elementary/docker:stable
-            env:
-              DEBIAN_FRONTEND: noninteractive
           - image: kalilinux/kali-rolling
-            env:
-              DEBIAN_FRONTEND: noninteractive
-          - image: ubuntu:18.04
             env:
               DEBIAN_FRONTEND: noninteractive
           - image: ubuntu:20.04

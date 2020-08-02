@@ -2,17 +2,24 @@
 
 set -e
 
-# Default settings
-DOTFILES=${DOTFILES:-~/.dotfiles}
-repo=${repo:-lannuttia/dotfiles}
-remote=${remote:-https://github.com/${repo}.git}
-branch=${branch:-master}
-
-chsh=${chsh:-true}
-ssh_keygen=${ssh_keygen:-true}
-gpg_keygen=${gpg_keygen:-true}
-git_config=${git_config:-true}
-gui=${gui:-true}
+setup_color() {
+	# Only use colors if connected to a terminal
+    if [ -t 1 ]; then
+		RED=$(printf '\033[31m')
+		GREEN=$(printf '\033[32m')
+		YELLOW=$(printf '\033[33m')
+		BLUE=$(printf '\033[34m')
+		BOLD=$(printf '\033[1m')
+		RESET=$(printf '\033[m')
+	else
+		RED=""
+		GREEN=""
+		YELLOW=""
+		BLUE=""
+		BOLD=""
+		RESET=""
+	fi
+}
 
 error() {
 	echo ${RED}"Error: $@"${RESET} >&2
@@ -82,17 +89,14 @@ packages() {
     kali)
       case $VERSION_ID in
         *)
-          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev'
+          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev libpango1.0-dev'
         ;;
       esac
     ;;
-    ubuntu|elementary)
+    ubuntu)
       case $VERSION_ID in
-        18.04|5.*)
-          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev'
-        ;;
         20.04)
-          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev'
+          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev libpango1.0-dev'
         ;;
         *)
           error "Unsupported version of $NAME: $VERSION_ID"
@@ -103,7 +107,7 @@ packages() {
     debian)
       case $VERSION_ID in
         10)
-          echo -n ' make gcc libx11-dev pkgconf libxft-dev libxinerama-dev'
+          echo -n ' make gcc pkgconf libx11-dev libxft-dev libxinerama-dev libpango1.0-dev'
         ;;
         *)
           error "Unsupported version of $NAME: $VERSION_ID"
@@ -111,7 +115,7 @@ packages() {
       esac
     ;;
     arch|artix)
-      echo -n ' make gcc pkgconf'
+      echo -n ' make gcc pkgconf libx11 libxft libxinerama pango'
     ;;
     *)
       error "Unsupported OS: $NAME"
@@ -149,6 +153,7 @@ main() {
     shift
   done
 
+  setup_color
   update
   install
 }
