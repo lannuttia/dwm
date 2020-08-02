@@ -104,16 +104,6 @@ packages() {
         ;;
       esac
     ;;
-    debian)
-      case $VERSION_ID in
-        10)
-          echo -n ' make gcc pkgconf libx11-dev libxft-dev libxinerama-dev libpango1.0-dev'
-        ;;
-        *)
-          error "Unsupported version of $NAME: $VERSION_ID"
-        ;;
-      esac
-    ;;
     arch|artix)
       echo -n ' make gcc pkgconf libx11 libxft libxinerama pango'
     ;;
