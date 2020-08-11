@@ -609,7 +609,7 @@ configure(Client *c)
 	ce.border_width = c->bw;
 	ce.above = None;
 	ce.override_redirect = False;
-    roundcorners(c);
+	roundcorners(c);
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
