@@ -609,6 +609,7 @@ configure(Client *c)
 	ce.border_width = c->bw;
 	ce.above = None;
 	ce.override_redirect = False;
+	roundcorners(c);
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
@@ -679,7 +680,6 @@ configurerequest(XEvent *e)
 				XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
 		} else
 			configure(c);
-            roundcorners(c);
 	} else {
 		wc.x = ev->x;
 		wc.y = ev->y;
@@ -1488,9 +1488,6 @@ restack(Monitor *m)
 	Client *c;
 	XEvent ev;
 	XWindowChanges wc;
-
-    for (c = m->stack; c; c = c->snext)
-        roundcorners(c);
 
 	drawbar(m);
 	if (!m->sel)
