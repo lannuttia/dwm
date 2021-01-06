@@ -111,12 +111,6 @@ typedef struct {
 } Key;
 
 typedef struct {
-    unsigned int signum;
-    void (*func)(const Arg *);
-    const Arg arg;
-} Signal;
-
-typedef struct {
 	const char *symbol;
 	void (*arrange)(Monitor *);
 } Layout;
@@ -197,7 +191,6 @@ static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
-static int getdwmblockspid();
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
@@ -205,7 +198,6 @@ static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
-static int fake_signal(void);
 static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
@@ -246,7 +238,6 @@ static void setup(void);
 static void seturgent(Client *c, int urg);
 static void showhide(Client *c);
 static void sigchld(int unused);
-static void sigdwmblocks(const Arg *arg);
 static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
@@ -281,9 +272,6 @@ static void resource_load(XrmDatabase db, char *name, enum resource_type rtype, 
 /* variables */
 static const char broken[] = "broken";
 static char stext[512];
-static char rawstext[256];
-static int dwmblockssig;
-pid_t dwmblockspid = 0;
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw = 0;      /* bar geometry */
@@ -487,26 +475,9 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < x + blw)
 			click = ClkLtSymbol;
-		else if (ev->x > (x = selmon->ww - TEXTW(stext) + lrpad)) {
+		else if (ev->x > selmon->ww - TEXTWM(stext))
 			click = ClkStatusText;
-
-			char *text = rawstext;
-			int i = -1;
-			char ch;
-			dwmblockssig = 0;
-			while (text[++i]) {
-				if ((unsigned char)text[i] < ' ') {
-					ch = text[i];
-					text[i] = '\0';
-					x += TEXTW(text) - lrpad;
-					text[i] = ch;
-					text += i+1;
-					i = -1;
-					if (x >= ev->x) break;
-					dwmblockssig = ch;
-				}
-			}
-		} else
+		else
 			click = ClkWinTitle;
 	} else if ((c = wintoclient(ev->window))) {
 		focus(c);
@@ -691,19 +662,6 @@ configurerequest(XEvent *e)
 		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
 	}
 	XSync(dpy, False);
-}
-
-void
-copyvalidchars(char *text, char *rawtext)
-{
-	int i = -1, j = 0;
-
-	while(rawtext[++i]) {
-		if ((unsigned char)rawtext[i] >= ' ') {
-			text[j++] = rawtext[i];
-		}
-	}
-	text[j] = '\0';
 }
 
 Monitor *
@@ -955,18 +913,6 @@ getatomprop(Client *c, Atom prop)
 }
 
 int
-getdwmblockspid()
-{
-	char buf[16];
-	FILE *fp = popen("pidof -s dwmblocks", "r");
-	fgets(buf, sizeof(buf), fp);
-	pid_t pid = strtoul(buf, NULL, 10);
-	pclose(fp);
-	dwmblockspid = pid;
-	return pid != 0 ? 0 : -1;
-}
-
-int
 getrootptr(int *x, int *y)
 {
 	int di;
@@ -1091,47 +1037,6 @@ keypress(XEvent *e)
 		&& CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
 		&& keys[i].func)
 			keys[i].func(&(keys[i].arg));
-}
-
-int
-fake_signal(void)
-{
-	char fsignal[256];
-	char indicator[9] = "fsignal:";
-	char str_signum[16];
-	int i, v, signum;
-	size_t len_fsignal, len_indicator = strlen(indicator);
-
-	// Get root name property
-	if (gettextprop(root, XA_WM_NAME, fsignal, sizeof(fsignal))) {
-		len_fsignal = strlen(fsignal);
-
-		// Check if this is indeed a fake signal
-		if (len_indicator > len_fsignal ? 0 : strncmp(indicator, fsignal, len_indicator) == 0) {
-			memcpy(str_signum, &fsignal[len_indicator], len_fsignal - len_indicator);
-			str_signum[len_fsignal - len_indicator] = '\0';
-
-			// Convert string value into managable integer
-			for (i = signum = 0; i < strlen(str_signum); i++) {
-				v = str_signum[i] - '0';
-				if (v >= 0 && v <= 9) {
-					signum = signum * 10 + v;
-				}
-			}
-
-			// Check if a signal was found, and if so handle it
-			if (signum)
-				for (i = 0; i < LENGTH(signals); i++)
-					if (signum == signals[i].signum && signals[i].func)
-						signals[i].func(&(signals[i].arg));
-
-			// A fake signal was sent
-			return 1;
-		}
-	}
-
-	// No fake signal was sent, so proceed with update
-	return 0;
 }
 
 void
@@ -1351,10 +1256,8 @@ propertynotify(XEvent *e)
 	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
 
-	if ((ev->window == root) && (ev->atom == XA_WM_NAME)) {
-		if (!fake_signal())
-			updatestatus();
-    }
+	if ((ev->window == root) && (ev->atom == XA_WM_NAME))
+		updatestatus();
 	else if (ev->state == PropertyDelete)
 		return; /* ignore */
 	else if ((c = wintoclient(ev->window))) {
@@ -1880,23 +1783,6 @@ sigchld(int unused)
 }
 
 void
-sigdwmblocks(const Arg *arg)
-{
-	union sigval sv;
-	sv.sival_int = 0 | (dwmblockssig << 8) | arg->i;
-	if (!dwmblockspid)
-		if (getdwmblockspid() == -1)
-			return;
-
-	if (sigqueue(dwmblockspid, SIGUSR1, sv) == -1) {
-		if (errno == ESRCH) {
-			if (!getdwmblockspid())
-				sigqueue(dwmblockspid, SIGUSR1, sv);
-		}
-	}
-}
-
-void
 spawn(const Arg *arg)
 {
 	if (arg->v == dmenucmd)
@@ -2255,10 +2141,8 @@ updatesizehints(Client *c)
 void
 updatestatus(void)
 {
-	if (!gettextprop(root, XA_WM_NAME, rawstext, sizeof(rawstext)))
+	if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
 		strcpy(stext, "dwm-"VERSION);
-	else
-		copyvalidchars(stext, rawstext);
 	drawbar(selmon);
 }
 
